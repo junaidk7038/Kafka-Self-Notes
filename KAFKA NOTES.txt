@@ -1,0 +1,396 @@
+how to check zk leader:- >>>>
+
+echo stat | nc "private ip" 2181 | grep Mode
+echo mntr | nc "private ip" 2181 | grep zk_server_state
+
+
+HOW TO KNOW KAFKA VERSION >>>>
+
+kafka-topics --version
+
+HOW TO KNOW LINUX OS VERSION >>>>
+
+cat /etc/os-release
+
+HOW TO KNOW ZK SYNCED FOLLOWER >>>>
+
+echo mntr | nc "private ip" 2181 | grep zk_synced_followers
+
+
+WE CAN SEE IN DETAIL 000000000000.LOG FILE >>>>
+
+kafka-dump-log --print-data-log --files /var/lib/kafka/data/replicated-topic-0/00000000000000000000.log
+
+
+/etc/kafka/ZOOKEEPER.PROPERTIES >>>>
+
+tickTime=2000
+dataDir=/var/lib/zookeeper/ 			(ZK METADATA SAVES THIS LOCATION)
+clientPort=2181
+initLimit=5 							(REQ GO FROM ZK TO BR OR ANYOTHER)
+syncLimit=2 							(CHECK INSYNC OR NOT)
+server.1=(ID & HOSTNAME):2888:3888		(zk address)
+server.2=(ID & HOSTNAME):2888:3888		(zk address)
+server.3=(ID & HOSTNAME):2888:3888		(zk address)
+autopurge.snapRetainCount=3 			(TAKE SNAP WHEN ZK METADATA CREATE)
+autopurge.purgeInterval=24 				(DELETE 1 SNAP IN EVERY 24 HOURS)
+
+
+
+/etc/kafka/SERVER.PROPERTIES >>>>
+
+broker.id.generation.enable = true					
+listeners=PLAINTEXT://(HOSTNAME):9092 				(THE BROKER OF THE ONE ADDRESS CONFIG HERE)
+advertised.listeners=PLAINTEXT://(HOSTNAME):9092	(THE BROKER OF THE ONE ADDRESS CONFIG HERE)
+super.users=User:kafkabroker 						(USER NAME)
+num.network.threads = 2								()
+num.io.threads = 8									()
+default.replication.factor = 1						()
+min.insync.replicas=2								(atleast 2 ISR's "IF REPLICATION F IS 4 THEN MIN,INSYNC 2 OR 3")
+delete.topic.enable = true							(CAN DELETE A TOPIC WHEN TRUE)
+socket.send.buffer.bytes = 102400					(REQ SEND SIZE 102400 EQUALS TO 1KB)
+socket.receive.buffer.bytes = 102400				()
+socket.request.max.bytes =104857600					(MAX REQ SIZE)
+log.dirs = /data/kafka/kafka_log					(KAFKA ACTUALL DATA STORED LOCATION)
+num.partitions = 6									(CREATE 1 TOPIC DEFAULT PARTITION 6)
+num.recovery.threads.per.data.dir = 1				()
+offsets.topic.replication.factor = 1				(OFFSET CONSUMER TOPIC REPLICA)
+log.retention.hours = 72							(RETENTION TIME)
+log.segment.bytes = 1073741824						(RETENTION DATA SIZE)
+log.retention.check.interval.ms = 300000			(CHECK RETENTION TIME OVER OR NOT)
+zookeeper.connect =(HOSTNAME):2181					(ALL ZK ADDRESS WITH , SEPARATED)
+zookeeper.connection.timeout.ms = 6000				() 
+
+
+
+PROVIDING DURABILITY >>>>
+
+Availability means data's replica.
+durability means Same data Availabile
+
+URP Stands for UNDER REPLICATED PARTITIONS
+URP means some replicas goes down
+
+
+
+DIFFRENCE BETWEEN REPLICA & ISR >>>>
+
+ISR means the replica is in sync
+replica means copy available
+
+
+
+PREFFERED REPLICA & UNCLEAN REPLICA >>>>
+
+PREFFERED REPLICA:- If the L-PARTITION goes down than another PARTITION is electes a leader from ISR side its called PREFFERED REPLICA.
+& The broker re-up then L-partitions comeback on privious broker.
+
+UNCLEAN REPLICA:- They take any replica to make leader.
+
+
+
+CONTROLLER >>>>
+
+BROKER/CONTROLLER:- They know which l-partitions & F-partitions on which broker.
+
+
+
+PRODUCER RETRIES >>>>
+
+if any broker goes down so producer retries again & again then switch to another broker. developer can configure the retries configuration.
+in producer configuration "RETRY.BACKOFF.MS" use for producer retries.
+
+MESSAGES SEND ORDER:- first we should configure "EOS IDEMPOTENT true" if we want sequential/transactional data than we should configure "MAX.IN.FLIGHT.REQUESTS" in our producer but it takes latency & low throuput.
+
+BOOTSTRAP SERVER:- >>>> we gave all the server address.
+
+Linger.ms:- diffrence between batches.
+
+
+
+PERFORMANCE TUNNING PRODUCER SIDE >>>>
+
+we should configure batch size / linger.ms / increase partitions.
+
+
+
+PERFORMANCE TUNNING CONSUMER SIDE >>>>
+
+Group id:- consumer group id
+
+fetch.max.wait.ms:- 
+
+fetch.min.bytes:- minimum bytes you could consume 
+
+fetch.max.bytes:- max bytes you could consume
+
+enable.auto.commit:- until message consumer committed (always true)
+
+session.timeout.ms:-
+
+auto.offset.reset:- (earliest) consumer could fetch latest data
+
+max.poll.records:- so far records you also consume
+
+how much consumers we have utne hee threads chalenge
+ 
+
+
+MESSAGES >>>>
+
+in one batch have thousands of messages however producer write messages on broker 1 by 1.
+
+
+
+PRODUCER ACKS >>>>
+
+ACKS 0:- no acks actually data write or not.		some data loss			low latency high throuput
+
+ACKS 1:- wait for leader acks only					a little data loss		it take latency high throuput
+
+ACKS ALL:- wait for leaders & Isr's acks			no data loss			high latency low throuput
+
+
+HOW TO KNOW CONTROLLER >>>>
+
+/bin/zookeeper-shell "PRIVATE IP":2181
+ls /brokers/ids
+get /controller
+
+get /brokers/ids/"CONTROLLER ID"
+
+
+
+FILE TYPES IN PARTITION >>>>
+
+.log:- actual data
+
+.index:- producer know the last committed offsets  
+
+.timeindex:- message time means when message committed
+
+leader-epoch-checkpoint:- How many times leader elected with offset.
+
+snapshot:- 
+
+
+
+WHEN RESTART A BROKER THEN CHECK THESE FILES >>>>
+
+recovery-point-offsets-checkpoint:- broker know the last committed offsets.
+
+replication-offsets-checkpoint:- the internal broker log  where Kafka tracks which messages 
+(from-to offset) were successfully replicated to other brokers
+
+
+
+RETENTION POLICY >>>>
+
+log.retention.ms:- retention in hours/days
+
+log.retention.bytes:- retention in bytes
+
+log.retention.check.interval.ms:- (CHECK RETENTION TIME OVER OR NOT "this file run on CPU")
+
+
+SCHEMA REGISTRY >>>>
+
+we create local cache schema prod & cons both side.
+
+every schema have seprate ID.
+
+WHAT IS SCHEMA REGISTRY IN KAFKA >>>>
+
+Schema registry is use for storing the Avro schmeas in kakfa.Avro schemas support the Restful API for managing the Avro schemas.
+Using this Avro schema stored the data in searlize format.we get the kafka versions using this Restful API.
+
+
+
+SCHEMA EVOLUTION & COMPATIBILITY:- >>>>
+
+
+
+
+CREATE TOPIC >>>>
+
+			kafka-topics --bootstrap-server :9092 --create --partitions 6 --replication-factor 3 --topic "topic name"
+
+
+PRODUCE >>>>
+
+			kafka-console-producer --bootstrap-server "hostname":9092 --topic "topic name"
+
+CONSUMER >>>>
+
+			kafka-console-consumer --bootstrap-server "hostname":9092 --from-beginning --topic "topic name"
+
+DESCRIBE >>>>
+
+			kafka-topics --describe --bootstrap-server "hostname":9092 --topic "topic name"
+
+INCREASE RETENTION >>>>
+
+			kafka-configs --zookeeper confluent-cp-zookeeper-headless:2181 --entity-type topics --entity-name "TOPIC NAME" --alter --add-config retention.ms=
+
+INCREASE PARTITIONS >>>>
+
+			kafka-topics --bootstrap-server "hostname":9092 --alter --partitions "NO OF PARTITIONS TO BE INCREASE" --topic "TOPIC NAME"
+
+FIND TOPIC >>>> 
+
+             kafka-topics --zookeeper confluent-cp-zookeeper-headless:2181 --list | grep "TOPIC NAME"
+
+LIST ALL TOPICS >>>>
+
+             kafka-topics --list --zookeeper confluent-cp-zookeeper-headless:2181
+			  
+UNDER REP-FACTOR >>>>
+
+              kafka-topics --describe --zookeeper confluent-cp-zookeeper-headless:2181 --under-replicated-partitions
+			  
+			  
+INCREASE MAX.MESSAGE.SIZE >>>>
+
+kafka-configs --zookeeper confluent-cp-zookeeper-headless:2181 --entity-type topics --entity-name "TOPIC NAME" --alter --add-config max.message.bytes=2097152
+
+
+HOW DOES KAFKA INCREASE REPLICATION FACTOR >>>>
+
+Increasing the replication factor can be done via the kafka-reassign-partitions tool. Specify the extra replicas in the custom reassignment json file and use it with the
+ --execute option to increase the replication factor of the specified partitions
+ 
+ 
+ 
+ 
+HOW TO REPLACE VAI ANSIBLE >>>>
+
+ 
+ - name: Manage Kafka Configurations
+  hosts: kafka
+  become: true
+
+  tasks:
+    - name: Copy Kafka configuration file
+      replace:
+        path: /etc/kafka/server.properties
+        regexp: '^default.replication.factor = 3$'
+        replace: 'default.replication.factor = 2'
+
+
+HOW TO ADD LINE VAI ANSIBLE >>>>
+
+- name: Adding a parameter
+      lineinfile:
+        path: /etc/kafka/server.properties
+        insertafter: EOF
+        line: "Junaid khan"
+		
+		
+HOW TO REMOVE LINE VAI ANSIBLE >>>>		
+
+    - name: Copy Kafka configuration file
+      replace:
+        path: /etc/kafka/server.properties
+        regexp: '^Junaid khan$'
+        replace: ' '
+
+
+HOW TO INCREASE PARTITION VAI ANSIBLE >>>>
+---
+- name: Manage Kafka Configurations
+  hosts: kafka-topic
+  become: true
+
+  tasks:
+    - name: Copy Kafka configuration file
+      shell: kafka-topics --bootstrap-server 172.31.15.97:9092 --alter --partitions 6 --topic tests
+      #command: cat /etc/kafka/server.properties |  sed -e 's/default.replication.factor = 3/default.replication.factor = 2/'
+
+
+
+
+Steps to provide security >>>>
+
+Note: steps 2 to 6 should be performed on each node
+
+three important steps we need to implement for security 
+1) Create the Certificate Authority file 
+    a) create the public and private key using a oppenssl 
+Ex:   Public key ca-cert
+        Private key ca-key
+		
+2) Create the Keystore file for each & Every server
+
+3) Create the truststore file We are using a Java utility keytool
+to create the trustore file and Keystore file
+
+4) import the public key in truststore and Keystore file
+
+5) create the certificate signing request
+
+6) Sign the certificate using CA in each & Every server
+
+7) import the signed certificate and CA into Keystore file
+
+8) add SSL specific properties to configure node in properties file 
+
+Ex: port no.
+Location of Keystore and truststore file
+
+Password of Keystore etc
+
+
+
+KAFKA ISSUES >>>>
+
+▪	WORKED ON KAFKA CONNECTOR ISSUES (SOURCE & SINK):- that time we was creating a data pipeline using Kafka source and sink connector.
+	Source connector is consuming from SQL database and publishing into topic and Sink connector subscribing to topic and putting into other
+	SQL database. Table has 16 GB of data. Now the problem is, data is not getting transferred from one DB to another. However, if table size
+	is small like 1000 rows then the data is getting successfully transferred. I use batch size & linger.ms which split the data & help to
+	transfer it to the destination.
+	
+	WORKED ON ISR POLICY FOR KAFKA CLUSTER:- In our Environment min.insync rep value is 2 & when pro writting the data into partition at that time
+	one of ISR is out of sync. after doing some digging I found that the OS patch is missing on that particular broker than I have updated broker with
+	OS latest patch then everything started working fine.
+	
+	
+CONSUMER LAG >>>>
+
+	KAFKA CONSUMER LAG IS A TERM USED TO DESCRIBE THE DIFFERENCE BETWEEN THE LATEST MESSAGE IN A KAFKA TOPIC AND THE MESSAGE THAT A CONSUMER HAS PROCESSED. THIS LAG CAN OCCUR WHEN THE CONSUMER IS UNABLE TO KEEP UP WITH THE RATE AT WHICH NEW MESSAGES ARE BEING PRODUCED AND ADDED TO THE TOPIC.
+
+
+
+SCHEMA REGISTRY >>>>
+
+Producer & consumer side we have LOCAL CACHE FOR SCHEMAS, whenever our producer trying to write the da 
+avsc is extention for avro schema
+
+The Schema Registry in Kafka is an integral component that provides a centralized schema management system for messages exchanged within Kafka topics. It is designed to address the challenges of data serialization and compatibility in distributed systems.
+
+Here are a few reasons why the Schema Registry is used in Kafka:
+
+DATA SERIALIZATION: Kafka messages are typically serialized into a specific format, such as Avro, JSON, or Protobuf, before being published to topics. The Schema Registry ensures that producers and consumers agree on the structure and format of the data by enforcing a schema for each message. This enables different applications to communicate seamlessly by adhering to a common data contract.
+
+SCHEMA EVOLUTION: In distributed systems, the structure of data often evolves over time. New fields may be added, existing fields modified, or deprecated fields removed. The Schema Registry allows for schema evolution by maintaining a history of schemas associated with each topic. Producers and consumers can evolve their schemas independently while ensuring backward and forward compatibility, as older and newer versions of the schema can coexist.
+
+COMPATIBILITY AND VALIDATION: When a producer publishes a message, the Schema Registry validates the schema against predefined compatibility rules. This validation ensures that the message adheres to the agreed-upon schema and avoids compatibility issues with existing consumers. Compatibility rules include backward compatibility (newer schema can read data produced with an older schema), forward compatibility (older schema can read data produced with a newer schema), and full compatibility (both backward and forward compatibility).
+
+SCHEMA VERSIONING AND METADATA: The Schema Registry assigns a unique identifier (schema ID) to each registered schema. This ID is included in the message header, enabling consumers to determine the schema used for deserialization. By storing metadata about schemas, such as versioning information and compatibility rules, the Schema Registry provides a central repository for managing schema-related information.
+
+PERFORMANCE AND EFFICIENCY: The Schema Registry optimizes the serialization and deserialization process by providing schema information separately from the data. Producers only need to transmit the schema ID, resulting in reduced message size. Consumers can retrieve the corresponding schema from the registry and deserialize the data accordingly. This approach improves performance and reduces network bandwidth requirements.
+
+
+
+
+
+TOPIC DELETION/COMPACTION >>>>
+
+
+Deletion: Deletion in Kafka refers to the process of removing data from Kafka topics. By default, Kafka retains messages for a certain period of time, known as the retention period, which can be configured. Once the retention period expires, Kafka automatically deletes the messages. Deletion can also be triggered manually by setting a message's offset for deletion or by specifying a delete policy.
+
+Compaction: Compaction, also known as log compaction, is a storage optimization technique in Kafka. Unlike deletion, where messages are completely removed, compaction retains a subset of messages based on their keys. The goal of compaction is to ensure that the latest value for each unique key is retained in the topic, while older values for the same key are compacted or removed. This is useful when you want to maintain a compacted topic where only the most recent value for each key is important.
+
+The key-based retention and compaction mechanism in Kafka allow you to build systems that maintain the full history of events while effectively managing storage usage. It's especially useful for scenarios like maintaining changelogs, maintaining the latest state of an entity, or reprocessing events based on key-based updates.
+
+Both deletion and compaction can be configured at the topic level in Kafka, providing flexibility in data retention and storage management based on the specific requirements of your use case.
+
