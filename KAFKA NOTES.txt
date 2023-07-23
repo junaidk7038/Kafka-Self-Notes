@@ -1,4 +1,4 @@
-
+to check zk leader:- >>>>
 
 echo stat | nc "private ip" 2181 | grep Mode
 echo mntr | nc "private ip" 2181 | grep zk_server_state
