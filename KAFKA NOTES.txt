@@ -13,7 +13,7 @@ HOW TO KNOW LINUX OS VERSION >>>>
 cat /etc/os-release
 
 HOW TO KNOW ZK SYNCED FOLLOWER >>>>
-
+.
 echo mntr | nc "private ip" 2181 | grep zk_synced_followers
 
 
